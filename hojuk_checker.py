@@ -6,17 +6,15 @@ import xml.parsers.expat
 ignore_data = ["外祖","統首","本","第","曾祖","戶","主","居","父","母","祖","年"]
 
 class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
-  parser_ = None
-  element_stack_ = [("root",[])]
-  entered_ = 0
-  errors_ = []
-  warnings_ = []
 
   def __init__(self, parser):
     parser.StartElementHandler = self.start_element
     parser.EndElementHandler  = self.end_element
     parser.CharacterDataHandler   = self.char_data
     self.parser_ = parser
+    self.element_stack_ = [("root",[])]
+    self.errors_ = []
+    self.warnings_ = []
 
   def start_element(self, name, attrs):
     par_name, par_list = self.element_stack_[-1]
@@ -43,43 +41,61 @@ class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
         self.warnings_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, data))
 
 class HojukCheckCommand(sublime_plugin.TextCommand):
-  checker_ = None
+  old_data_ = None
 
   def run(self, edit, target):
-    global untagged
+    data = self.view.substr(sublime.Region(0, self.view.size()))
+    is_refresh = (target == 'refresh')
 
-    if self.checker_ is None:
+    if self.old_data_ != data:
+      self.old_data_ = data
+      is_refresh = True
+
+    if is_refresh:
+
+      for reg in ["hojuk_dup_tag", "hojuk_no_tag_str"]:
+        self.view.erase_regions(reg)
+
       try:
-        raw = self.view.substr(sublime.Region(0, self.view.size())).encode('utf-8')
+        raw = data.encode('utf-8')
       except Exception as e: 
-        sublime.error_message("UTF-8 문서가 아닙니다")
+        if not is_refresh:
+          sublime.error_message("UTF-8 문서가 아닙니다")
         return
 
       p = xml.parsers.expat.ParserCreate()
-      self.checker_ = HojukChecker(p)
+      checker = HojukChecker(p)
       try:
         p.Parse(raw, 1)
       except Exception as e:
-        sublime.error_message(str(e.message))
+        checker = None
+        if not is_refresh:
+          sublime.error_message(str(e.message))
         return
 
       regions = []
       print 'Duplicated'
-      for r,c,cmt in self.checker_.errors_:
+      for r,c,cmt in checker.errors_:
         start = self.view.text_point(r,c)
         end = start + len(cmt) + 2
         regions.append(sublime.Region(start,end))
         print r,c,cmt
       self.view.add_regions("hojuk_dup_tag", regions, "comment", "cross", sublime.DRAW_OUTLINED)
 
+      '''
       regions = []
       print 'None-Tagged'
-      for r,c,cmt in self.checker_.warnings_:
+      for r,c,cmt in checker.warnings_:
         start = self.view.text_point(r,c)
         end = start + len(cmt)
         regions.append(sublime.Region(start,end))
         print r,c,cmt
       self.view.add_regions("hojuk_no_tag_str", regions, "string", "cross", sublime.DRAW_OUTLINED)
+      '''
+
+      if is_refresh:
+        print "file is modified - and refreshed!"
+        return
 
     cur_pos = self.view.sel()[0].begin()
     regions = self.view.get_regions("hojuk_" + target)

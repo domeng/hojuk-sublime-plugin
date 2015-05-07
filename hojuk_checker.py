@@ -82,7 +82,6 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         print r,c,cmt
       self.view.add_regions("hojuk_dup_tag", regions, "comment", "cross", sublime.DRAW_OUTLINED)
 
-      '''
       regions = []
       print 'None-Tagged'
       for r,c,cmt in checker.warnings_:
@@ -91,7 +90,6 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         regions.append(sublime.Region(start,end))
         print r,c,cmt
       self.view.add_regions("hojuk_no_tag_str", regions, "string", "cross", sublime.DRAW_OUTLINED)
-      '''
 
       if is_refresh:
         print "file is modified - and refreshed!"

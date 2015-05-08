@@ -42,19 +42,15 @@ class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
 
 class HojukCheckCommand(sublime_plugin.TextCommand):
   
-  def __init__(self):
-    self.old_data_ = None
-
   def run(self, edit, target):
     data = self.view.substr(sublime.Region(0, self.view.size()))
     is_refresh = (target == 'refresh')
 
-    if self.old_data_ != data:
+    if not hasattr(self, 'old_data_') or self.old_data_ != data:
       self.old_data_ = data
       is_refresh = True
 
     if is_refresh:
-
       for reg in ["hojuk_dup_tag", "hojuk_no_tag_str"]:
         self.view.erase_regions(reg)
 

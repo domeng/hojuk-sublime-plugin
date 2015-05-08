@@ -41,7 +41,9 @@ class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
         self.warnings_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, data))
 
 class HojukCheckCommand(sublime_plugin.TextCommand):
-  old_data_ = None
+  
+  def __init__(self):
+    self.old_data_ = None
 
   def run(self, edit, target):
     data = self.view.substr(sublime.Region(0, self.view.size()))
@@ -80,7 +82,7 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         end = start + len(cmt) + 2
         regions.append(sublime.Region(start,end))
         print r,c,cmt
-      self.view.add_regions("hojuk_dup_tag", regions, "comment", "cross", sublime.DRAW_OUTLINED)
+      self.view.add_regions("hojuk_dup_tag", regions, "invalid", "circle", sublime.DRAW_OUTLINED)
 
       regions = []
       print 'None-Tagged'
@@ -89,7 +91,7 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         end = start + len(cmt)
         regions.append(sublime.Region(start,end))
         print r,c,cmt
-      self.view.add_regions("hojuk_no_tag_str", regions, "string", "cross", sublime.DRAW_OUTLINED)
+      self.view.add_regions("hojuk_no_tag_str", regions, "string", "dot", sublime.DRAW_OUTLINED)
 
       if is_refresh:
         print "file is modified - and refreshed!"

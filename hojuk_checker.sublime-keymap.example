@@ -1,0 +1,4 @@
+[
+	{ "keys": ["shift+f1"], "command": "hojuk_check", "args" : {"target" : "dup_tag"} },
+	{ "keys": ["shift+f2"], "command": "hojuk_check", "args" : {"target" : "no_tag_str"} }
+]

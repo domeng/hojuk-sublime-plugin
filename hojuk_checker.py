@@ -4,6 +4,10 @@ from StringIO import StringIO
 import xml.parsers.expat
 
 ignore_data = ["外祖","統首","本","第","曾祖","戶","主","居","父","母","祖","年"]
+reg_colors = {
+  "hojuk_dup_tag" : "invalid",
+  "hojuk_no_tag_str": "string"
+}
 
 class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
 
@@ -44,21 +48,20 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
   
   def run(self, edit, target):
     data = self.view.substr(sublime.Region(0, self.view.size()))
-    is_refresh = (target == 'refresh')
+    is_refresh = False
 
     if not hasattr(self, 'old_data_') or self.old_data_ != data:
       self.old_data_ = data
       is_refresh = True
 
     if is_refresh:
-      for reg in ["hojuk_dup_tag", "hojuk_no_tag_str"]:
+      for reg in reg_colors.keys():
         self.view.erase_regions(reg)
 
       try:
         raw = data.encode('utf-8')
       except Exception as e: 
-        if not is_refresh:
-          sublime.error_message("UTF-8 문서가 아닙니다")
+        sublime.error_message("UTF-8 문서가 아닙니다")
         return
 
       p = xml.parsers.expat.ParserCreate()
@@ -66,10 +69,10 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
       try:
         p.Parse(raw, 1)
       except Exception as e:
-        checker = None
-        if not is_refresh:
-          sublime.error_message(str(e.message))
+        sublime.error_message(str(e.message))
         return
+
+      global reg_colors
 
       regions = []
       print 'Duplicated'
@@ -78,7 +81,7 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         end = start + len(cmt) + 2
         regions.append(sublime.Region(start,end))
         print r,c,cmt
-      self.view.add_regions("hojuk_dup_tag", regions, "invalid", "circle", sublime.DRAW_OUTLINED)
+      self.view.add_regions("hojuk_dup_tag", regions, reg_colors["hojuk_dup_tag"], "circle", sublime.DRAW_OUTLINED)
 
       regions = []
       print 'None-Tagged'
@@ -87,11 +90,7 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         end = start + len(cmt)
         regions.append(sublime.Region(start,end))
         print r,c,cmt
-      self.view.add_regions("hojuk_no_tag_str", regions, "string", "dot", sublime.DRAW_OUTLINED)
-
-      if is_refresh:
-        print "file is modified - and refreshed!"
-        return
+      self.view.add_regions("hojuk_no_tag_str", regions, reg_colors["hojuk_no_tag_str"], "dot", sublime.DRAW_OUTLINED)
 
     cur_pos = self.view.sel()[0].begin()
     regions = self.view.get_regions("hojuk_" + target)
@@ -104,5 +103,6 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
         x = regions[0]
       self.view.sel().clear()
       self.view.sel().add(sublime.Region(x.begin()))
-
+      self.view.erase_regions("hojuk_current_focus")
+      self.view.add_regions("hojuk_current_focus", [x], reg_colors["hojuk_" + target])
       self.view.show(x)

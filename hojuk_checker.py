@@ -6,7 +6,8 @@ import xml.parsers.expat
 ignore_data = ["外祖","統首","本","第","曾祖","戶","主","居","父","母","祖","年"]
 reg_colors = {
   "hojuk_dup_tag" : "invalid",
-  "hojuk_no_tag_str": "string"
+  "hojuk_no_tag_str": "string",
+  "hojuk_no_tag_str_global": "comment"
 }
 
 class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
@@ -17,8 +18,9 @@ class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
     parser.CharacterDataHandler   = self.char_data
     self.parser_ = parser
     self.element_stack_ = [("root",[])]
-    self.errors_ = []
-    self.warnings_ = []
+    self.dup_list_ = []
+    self.non_tag_local_ = []
+    self.non_tag_global_ = []
 
   def start_element(self, name, attrs):
     par_name, par_list = self.element_stack_[-1]
@@ -26,7 +28,7 @@ class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
       pass
     else:
       if name in par_list:
-        self.errors_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, name))
+        self.dup_list_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, name))
       else:
         par_list.append(name)
     self.element_stack_.append( (name,[]) )
@@ -42,7 +44,9 @@ class HojukChecker: # xsd가 지원되지 않기 때문에 하드코딩
     if len(stripped) > 0:
       par_name, par_list = self.element_stack_[-1]
       if par_name == u'사람' or par_name == u'문서':
-        self.warnings_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, data))
+        self.non_tag_local_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, data))
+      elif len(self.element_stack_) <= 1:
+        self.non_tag_global_.append((self.parser_.CurrentLineNumber - 1, self.parser_.CurrentColumnNumber, data))
 
 class HojukCheckCommand(sublime_plugin.TextCommand):
   
@@ -75,22 +79,25 @@ class HojukCheckCommand(sublime_plugin.TextCommand):
       global reg_colors
 
       regions = []
-      print 'Duplicated'
-      for r,c,cmt in checker.errors_:
+      for r,c,cmt in checker.dup_list_:
         start = self.view.text_point(r,c)
         end = start + len(cmt) + 2
         regions.append(sublime.Region(start,end))
-        print r,c,cmt
       self.view.add_regions("hojuk_dup_tag", regions, reg_colors["hojuk_dup_tag"], "circle", sublime.DRAW_OUTLINED)
 
       regions = []
-      print 'None-Tagged'
-      for r,c,cmt in checker.warnings_:
+      for r,c,cmt in checker.non_tag_local_:
         start = self.view.text_point(r,c)
         end = start + len(cmt)
         regions.append(sublime.Region(start,end))
-        print r,c,cmt
       self.view.add_regions("hojuk_no_tag_str", regions, reg_colors["hojuk_no_tag_str"], "dot", sublime.DRAW_OUTLINED)
+
+      regions = []
+      for r,c,cmt in checker.non_tag_global_:
+        start = self.view.text_point(r,c)
+        end = start + len(cmt)
+        regions.append(sublime.Region(start,end))
+      self.view.add_regions("hojuk_no_tag_str_global", regions, reg_colors["hojuk_no_tag_str_global"], "dot", sublime.DRAW_OUTLINED)
 
     cur_pos = self.view.sel()[0].begin()
     regions = self.view.get_regions("hojuk_" + target)
